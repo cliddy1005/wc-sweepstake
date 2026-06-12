@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>World Cup 2026 — The Sweepstake Draw</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Outfit:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pitch:#06140d;
+    --pitch-2:#0b2417;
+    --line:#1d3a2a;
+    --gold:#f3c544;
+    --gold-soft:#ffe39a;
+    --grass:#27c06a;
+    --chalk:#f4f7f1;
+    --muted:#8aa597;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Outfit',system-ui,sans-serif;
+    background:
+      radial-gradient(120% 80% at 50% -10%, #103423 0%, var(--pitch) 55%, #030a06 100%);
+    color:var(--chalk);
+    min-height:100vh;
+    overflow-x:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
+  /* faint pitch stripes */
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+    background:repeating-linear-gradient(90deg, rgba(255,255,255,.012) 0 8%, transparent 8% 16%);
+  }
+  .wrap{position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:28px 18px 60px}
+
+  header{text-align:center;padding:6px 0 18px}
+  .eyebrow{
+    font-family:'Space Mono',monospace;letter-spacing:.42em;text-transform:uppercase;
+    font-size:11px;color:var(--gold);opacity:.9;padding-left:.42em
+  }
+  h1{
+    font-family:'Anton',sans-serif;font-weight:400;line-height:.92;text-transform:uppercase;
+    font-size:clamp(38px,9vw,84px);letter-spacing:.01em;margin:6px 0 2px;
+    background:linear-gradient(180deg,#fff 0%, var(--gold-soft) 55%, var(--gold) 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 4px 14px rgba(0,0,0,.45));
+  }
+  .sub{font-family:'Space Mono',monospace;font-size:12.5px;color:var(--muted);letter-spacing:.06em}
+  .sub b{color:var(--chalk)}
+
+  /* STAGE */
+  .stage{
+    margin:22px auto 8px;max-width:560px;
+    border:1px solid var(--line);border-radius:22px;
+    background:linear-gradient(180deg, rgba(15,42,28,.65), rgba(6,18,12,.65));
+    box-shadow:0 22px 60px -28px #000, inset 0 1px 0 rgba(255,255,255,.04);
+    padding:26px 22px;text-align:center;position:relative;overflow:hidden;
+  }
+  .stage::after{ /* centre-circle hint */
+    content:"";position:absolute;left:50%;top:50%;width:260px;height:260px;translate:-50% -50%;
+    border:1px solid rgba(255,255,255,.05);border-radius:50%;pointer-events:none;
+  }
+  .stage-label{
+    font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:.3em;
+    font-size:11px;color:var(--muted);min-height:14px
+  }
+  .stage-label b{color:var(--gold)}
+
+  .ball{
+    margin:16px auto 6px;width:138px;height:138px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;position:relative;
+    background:radial-gradient(circle at 34% 30%, #fff 0 10%, #e9eee8 28%, #b9c6bd 70%, #7f9187 100%);
+    box-shadow:0 16px 34px -14px rgba(0,0,0,.7), inset -10px -12px 24px rgba(0,0,0,.28), inset 6px 8px 16px rgba(255,255,255,.55);
+    transition:transform .18s ease;
+  }
+  .ball .flag{font-size:62px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
+  .ball.idle .flag{font-size:50px;opacity:.5}
+  .ball.pop{animation:pop .42s cubic-bezier(.2,1.4,.35,1)}
+  @keyframes pop{0%{transform:scale(.6) rotate(-8deg)}60%{transform:scale(1.12) rotate(4deg)}100%{transform:scale(1)}}
+  .ball.spin{animation:spin .5s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .team-name{font-family:'Anton',sans-serif;text-transform:uppercase;letter-spacing:.02em;
+    font-size:clamp(22px,6vw,32px);margin-top:6px;min-height:1.1em;color:var(--chalk)}
+  .team-rank{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:.08em;min-height:14px}
+
+  /* COUNTDOWN overlay number reuses ball area */
+  .count{font-family:'Anton',sans-serif;font-size:96px;color:var(--gold);line-height:1;
+    animation:cd .9s ease forwards}
+  @keyframes cd{0%{transform:scale(.4);opacity:0}25%{opacity:1}75%{transform:scale(1);opacity:1}100%{transform:scale(1.25);opacity:0}}
+
+  /* BUTTONS */
+  .controls{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+  button{font-family:'Outfit',sans-serif;cursor:pointer;border:none;font-weight:600;letter-spacing:.02em;
+    transition:transform .12s ease, box-shadow .2s ease, opacity .2s}
+  button:active{transform:translateY(1px) scale(.99)}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .btn-go{
+    font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.06em;
+    font-size:21px;padding:15px 40px;border-radius:999px;color:#1a1205;
+    background:linear-gradient(180deg,#ffe9a8, var(--gold) 60%, #d6a31f);
+    box-shadow:0 12px 28px -10px rgba(243,197,68,.6), inset 0 1px 0 rgba(255,255,255,.6)}
+  .btn-go:hover{box-shadow:0 16px 34px -10px rgba(243,197,68,.8)}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--line);
+    padding:13px 22px;border-radius:999px;font-size:14px}
+  .btn-ghost:hover{color:var(--chalk);border-color:var(--grass)}
+
+  /* PLAYER GRID */
+  .players{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:30px}
+  @media(max-width:760px){.players{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:420px){.players{grid-template-columns:1fr}}
+
+  .pcard{
+    border:1px solid var(--line);border-radius:16px;padding:14px 14px 16px;
+    background:linear-gradient(180deg, rgba(13,36,24,.55), rgba(6,16,11,.55));
+    position:relative;transition:border-color .3s, box-shadow .3s, transform .3s;
+  }
+  .pcard.active{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold), 0 18px 40px -22px rgba(243,197,68,.5)}
+  .pcard.done{border-color:rgba(39,192,106,.5)}
+  .phead{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .pname{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:19px;letter-spacing:.02em}
+  .pchip{width:11px;height:11px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 10px currentColor}
+  .pcount{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)}
+
+  .slots{display:flex;flex-direction:column;gap:5px}
+  .slot{display:flex;align-items:center;gap:9px;min-height:26px;font-size:14.5px;
+    border-bottom:1px dashed rgba(255,255,255,.06);padding-bottom:4px}
+  .slot:last-child{border-bottom:none}
+  .slot .sflag{font-size:19px;width:24px;text-align:center;flex:0 0 auto}
+  .slot .sname{color:var(--chalk);opacity:.95;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .slot.empty .sflag{opacity:.18}
+  .slot.empty .sname{color:var(--muted);opacity:.35;font-style:italic}
+  .slot.drop{animation:drop .45s ease}
+  @keyframes drop{0%{opacity:0;transform:translateY(-8px)}100%{opacity:1;transform:none}}
+
+  /* verdict / best-team line */
+  .verdict{margin-top:11px;padding-top:9px;border-top:1px solid var(--line);
+    font-family:'Space Mono',monospace;font-size:10.5px;color:var(--muted);line-height:1.5;
+    opacity:0;transition:opacity .5s}
+  .verdict.show{opacity:1}
+  .verdict b{color:var(--gold-soft)}
+  .leader{position:absolute;top:-9px;right:12px;background:var(--gold);color:#1a1205;
+    font-family:'Space Mono',monospace;font-weight:700;font-size:9.5px;letter-spacing:.12em;
+    padding:3px 9px;border-radius:999px;text-transform:uppercase;display:none}
+  .pcard.top .leader{display:block}
+
+  footer{text-align:center;margin-top:34px;font-family:'Space Mono',monospace;
+    font-size:10.5px;color:var(--muted);opacity:.7;line-height:1.7;letter-spacing:.04em}
+
+  /* ---- admin lock gate ---- */
+  .lock{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;
+    background:rgba(4,10,7,.74);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);border-radius:22px}
+  .lock.hidden{display:none}
+  .lock-card{text-align:center;max-width:300px;padding:6px}
+  .lock-title{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:24px;letter-spacing:.03em}
+  .lock-sub{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);margin:4px 0 16px;letter-spacing:.05em}
+  .pin{font-family:'Space Mono',monospace;font-size:24px;letter-spacing:.4em;text-align:center;width:180px;
+    padding:12px 10px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.35);
+    color:var(--chalk);outline:none;margin-bottom:14px;text-indent:.4em}
+  .pin:focus{border-color:var(--gold)}
+  .lock.shake .lock-card{animation:shk .4s}
+  @keyframes shk{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
+  .pin-msg{font-family:'Space Mono',monospace;font-size:11px;color:#ff7a8a;margin-top:12px;min-height:14px}
+
+  /* ---- save & share ---- */
+  .save{display:none;flex-direction:column;align-items:center;gap:10px;margin-top:16px}
+  .save.show{display:flex}
+  .save-note{font-family:'Space Mono',monospace;font-size:10.5px;color:var(--muted);line-height:1.7;max-width:460px;text-align:center}
+  .save-note b{color:var(--chalk)}
+  .save-note code{display:inline-block;color:var(--gold-soft);word-break:break-all;font-size:10px;margin-top:6px;
+    background:rgba(0,0,0,.35);padding:6px 8px;border-radius:8px;border:1px solid var(--line)}
+
+  .viewbadge{display:none;margin:10px auto 0;font-family:'Space Mono',monospace;font-size:10px;
+    letter-spacing:.2em;text-transform:uppercase;color:#06140d;background:var(--grass);
+    padding:5px 14px;border-radius:999px}
+  .viewbadge.show{display:inline-block}
+
+  .adminlink{display:none;margin-top:16px;background:none;border:none;color:var(--muted);
+    font-family:'Space Mono',monospace;font-size:11px;text-decoration:underline;cursor:pointer;letter-spacing:.04em}
+  .adminlink.show{display:inline-block}
+
+  .toast{position:fixed;left:50%;bottom:26px;translate:-50% 20px;opacity:0;pointer-events:none;
+    background:var(--gold);color:#1a1205;font-family:'Outfit',sans-serif;font-weight:600;font-size:13px;
+    padding:11px 20px;border-radius:999px;box-shadow:0 12px 30px -10px rgba(0,0,0,.6);
+    transition:opacity .25s, translate .25s;z-index:30}
+  .toast.show{opacity:1;translate:-50% 0}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">FIFA World Cup · USA · Canada · Mexico</div>
+    <h1>The Sweepstake Draw</h1>
+    <div class="sub"><b>48</b> teams &nbsp;·&nbsp; <b>6</b> players &nbsp;·&nbsp; <b>8</b> apiece &nbsp;·&nbsp; one winner takes the lot</div>
+    <div class="viewbadge" id="viewBadge">Official picks · view only</div>
+  </header>
+
+  <div class="stage">
+    <div class="stage-label" id="stageLabel">Tap the button to begin the draw</div>
+    <div class="ball idle" id="ball"><span class="flag" id="ballFlag">⚽</span></div>
+    <div class="team-name" id="teamName">&nbsp;</div>
+    <div class="team-rank" id="teamRank">&nbsp;</div>
+    <div class="controls">
+      <button class="btn-go" id="goBtn">Start the Draw</button>
+      <button class="btn-ghost" id="skipBtn" style="display:none">Skip to results</button>
+      <button class="btn-ghost" id="againBtn" style="display:none">Draw again</button>
+    </div>
+
+    <div class="save" id="save">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+        <button class="btn-go" id="copyBtn">Copy share link</button>
+        <button class="btn-ghost" id="dlBtn">Download locked page</button>
+      </div>
+      <div class="save-note" id="saveNote"></div>
+    </div>
+
+    <button class="adminlink" id="adminLink">Run a new draw (admin)</button>
+
+    <div class="lock hidden" id="lock">
+      <div class="lock-card">
+        <div class="lock-title">Admin access</div>
+        <div class="lock-sub">Enter the PIN to run the draw</div>
+        <input id="pinInput" class="pin" type="password" inputmode="numeric" maxlength="10" placeholder="····" autocomplete="off">
+        <br>
+        <button class="btn-go" id="unlockBtn">Unlock</button>
+        <div class="pin-msg" id="pinMsg">&nbsp;</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="players" id="players"></div>
+
+  <footer>
+    Pure random draw — teams shuffled and dealt one at a time, round by round.<br>
+    Squad strength is the average FIFA ranking of a player's 8 teams (April 2026). Lower is stronger.
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== ADMIN SETTINGS ===================== *
+ *  PIN is checked in the browser, so treat it as a light gate
+ *  (anyone who views page source can read it) — fine for a
+ *  friendly sweepstake, not a real secret.
+ * ========================================================== */
+const ADMIN_PIN     = "2026";   // <-- change this to your own PIN
+const LOCKED_RESULT = "";       // <-- paste a 48-char draw code here to permanently show those picks
+/* ========================================================== */
+
+/* ---- The 48 qualified teams (FIFA rank, April 2026) ---- */
+const TEAMS = [
+  {n:"France",f:"🇫🇷",r:1},{n:"Spain",f:"🇪🇸",r:2},{n:"Argentina",f:"🇦🇷",r:3},
+  {n:"England",f:"🏴󠁧󠁢󠁥󠁮󠁧󠁿",r:4},{n:"Portugal",f:"🇵🇹",r:5},{n:"Brazil",f:"🇧🇷",r:6},
+  {n:"Netherlands",f:"🇳🇱",r:7},{n:"Morocco",f:"🇲🇦",r:8},{n:"Belgium",f:"🇧🇪",r:9},
+  {n:"Germany",f:"🇩🇪",r:10},{n:"Croatia",f:"🇭🇷",r:11},{n:"Colombia",f:"🇨🇴",r:13},
+  {n:"Senegal",f:"🇸🇳",r:14},{n:"Mexico",f:"🇲🇽",r:15},{n:"United States",f:"🇺🇸",r:16},
+  {n:"Uruguay",f:"🇺🇾",r:17},{n:"Japan",f:"🇯🇵",r:18},{n:"Switzerland",f:"🇨🇭",r:19},
+  {n:"Iran",f:"🇮🇷",r:21},{n:"Türkiye",f:"🇹🇷",r:22},{n:"Ecuador",f:"🇪🇨",r:23},
+  {n:"Austria",f:"🇦🇹",r:24},{n:"South Korea",f:"🇰🇷",r:25},{n:"Australia",f:"🇦🇺",r:27},
+  {n:"Canada",f:"🇨🇦",r:30},{n:"Norway",f:"🇳🇴",r:32},{n:"Egypt",f:"🇪🇬",r:33},
+  {n:"Algeria",f:"🇩🇿",r:36},{n:"Sweden",f:"🇸🇪",r:37},{n:"Paraguay",f:"🇵🇾",r:38},
+  {n:"Ivory Coast",f:"🇨🇮",r:39},{n:"Czechia",f:"🇨🇿",r:41},{n:"Scotland",f:"🏴󠁧󠁢󠁳󠁣󠁴󠁿",r:43},
+  {n:"Tunisia",f:"🇹🇳",r:47},{n:"Panama",f:"🇵🇦",r:51},{n:"Qatar",f:"🇶🇦",r:53},
+  {n:"DR Congo",f:"🇨🇩",r:55},{n:"Iraq",f:"🇮🇶",r:56},{n:"Uzbekistan",f:"🇺🇿",r:57},
+  {n:"Saudi Arabia",f:"🇸🇦",r:58},{n:"South Africa",f:"🇿🇦",r:60},{n:"Jordan",f:"🇯🇴",r:64},
+  {n:"Cape Verde",f:"🇨🇻",r:70},{n:"Bosnia & H.",f:"🇧🇦",r:71},{n:"Ghana",f:"🇬🇭",r:73},
+  {n:"Haiti",f:"🇭🇹",r:79},{n:"Curaçao",f:"🇨🇼",r:81},{n:"New Zealand",f:"🇳🇿",r:88}
+];
+
+const PLAYERS = [
+  {name:"Marky",  color:"#ff5d73"},
+  {name:"Jakeo",  color:"#4fd1ff"},
+  {name:"Burkey", color:"#a78bfa"},
+  {name:"Dave",   color:"#27c06a"},
+  {name:"Loaf",   color:"#ffb347"},
+  {name:"Kev",    color:"#f3c544"}
+];
+
+const BASE  = Math.floor(TEAMS.length / PLAYERS.length); // 9
+const EXTRA = TEAMS.length % PLAYERS.length;             // 3 bonus teams
+TEAMS.forEach((t,i)=>t.idx=i);
+
+/* ---- DOM ---- */
+const $ = id => document.getElementById(id);
+const ball=$("ball"), ballFlag=$("ballFlag"), teamName=$("teamName"),
+      teamRank=$("teamRank"), stageLabel=$("stageLabel"),
+      goBtn=$("goBtn"), skipBtn=$("skipBtn"), againBtn=$("againBtn"),
+      playersEl=$("players");
+
+let squads, order, drawing=false, skipped=false;
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+const sleep = ms => new Promise(r=>setTimeout(r, skipped?0:ms));
+
+/* build empty player cards */
+function buildBoard(){
+  squads = PLAYERS.map(p=>({...p, teams:[]}));
+  playersEl.innerHTML = squads.map((p,i)=>`
+    <div class="pcard" id="pc${i}">
+      <div class="leader">Top seed</div>
+      <div class="phead">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="pchip" style="color:${p.color}"></span>
+          <span class="pname">${p.name}</span>
+        </div>
+        <span class="pcount" id="cnt${i}">0 teams</span>
+      </div>
+      <div class="slots" id="slots${i}">
+        ${Array.from({length:BASE}).map(()=>`
+          <div class="slot empty"><span class="sflag">●</span><span class="sname">—</span></div>
+        `).join("")}
+      </div>
+      <div class="verdict" id="vd${i}"></div>
+    </div>`).join("");
+}
+buildBoard();
+
+/* place one team into a player's next slot (append a slot if needed for bonus picks) */
+function placeTeam(pi, team, slotIndex){
+  const container = $("slots"+pi);
+  let s = container.children[slotIndex];
+  if(!s){
+    s = document.createElement("div");
+    s.className = "slot empty";
+    s.innerHTML = `<span class="sflag">●</span><span class="sname">—</span>`;
+    container.appendChild(s);
+  }
+  s.classList.remove("empty");
+  s.classList.add("drop");
+  s.innerHTML = `<span class="sflag">${team.f}</span><span class="sname">${team.n}</span>`;
+  squads[pi].teams.push(team);
+  const c = squads[pi].teams.length;
+  $("cnt"+pi).textContent = `${c} team${c===1?"":"s"}`;
+}
+
+function setActive(pi){
+  document.querySelectorAll('.pcard').forEach(c=>c.classList.remove('active'));
+  if(pi>=0) $("pc"+pi).classList.add('active');
+}
+
+/* the main draw sequence */
+async function runDraw(){
+  drawing=true; skipped=false;
+  goBtn.style.display="none";
+  skipBtn.style.display="inline-block";
+  againBtn.style.display="none";
+
+  // countdown 3-2-1
+  for(const n of [3,2,1]){
+    if(!skipped){
+      stageLabel.innerHTML="Get ready…";
+      ball.className="ball";
+      ball.innerHTML=`<span class="count">${n}</span>`;
+      await sleep(820);
+    }
+  }
+  ball.innerHTML=`<span class="flag" id="ballFlag">⚽</span>`;
+
+  // decide squad sizes: everyone gets BASE, then EXTRA random players get +1
+  const counts = PLAYERS.map(()=>BASE);
+  shuffle([...Array(PLAYERS.length).keys()]).slice(0,EXTRA).forEach(i=>counts[i]++);
+  const maxRounds = Math.max(...counts);
+
+  // build draw order: deal round by round, skipping players who are already full
+  const deck = shuffle([...TEAMS]);
+  const dealt = PLAYERS.map(()=>0);
+  const seq=[]; // {pi, team, slot}
+  let idx=0;
+  for(let round=0; round<maxRounds; round++){
+    for(let pi=0; pi<PLAYERS.length; pi++){
+      if(dealt[pi] < counts[pi]){
+        seq.push({pi, team:deck[idx++], slot:round});
+        dealt[pi]++;
+      }
+    }
+  }
+
+  for(let k=0;k<seq.length;k++){
+    const {pi,team,slot}=seq[k];
+    setActive(pi);
+    stageLabel.innerHTML=`Round <b>${slot+1}</b> / ${maxRounds} &nbsp;·&nbsp; drawing for <b>${squads[pi].name}</b>`;
+
+    if(!skipped){
+      // spin
+      ball.className="ball spin";
+      ball.querySelector('.flag').textContent="⚽";
+      teamName.textContent="…";
+      teamRank.innerHTML="&nbsp;";
+      await sleep(260);
+      // reveal
+      ball.className="ball pop";
+      ball.querySelector('.flag').textContent=team.f;
+      teamName.textContent=team.n;
+      teamRank.textContent=`FIFA #${team.r}  →  ${squads[pi].name.toUpperCase()}`;
+      await sleep(220);
+    }
+    placeTeam(pi, team, slot);
+    if(!skipped) await sleep(140);
+  }
+
+  finish();
+}
+
+function computeVerdicts(){
+  let best={avg:1e9,i:-1};
+  squads.forEach((p,i)=>{
+    const avg = p.teams.reduce((s,t)=>s+t.r,0)/p.teams.length;
+    const top = p.teams.reduce((a,b)=>a.r<b.r?a:b);
+    p.avg=avg; p.top=top;
+    if(avg<best.avg){best={avg,i};}
+    const vd=$("vd"+i);
+    vd.innerHTML=`Top seed <b>${top.f} ${top.n}</b> · squad avg rank <b>${avg.toFixed(1)}</b>`;
+    vd.classList.add("show");
+    $("pc"+i).classList.add("done");
+  });
+  if(best.i>=0){
+    $("pc"+best.i).classList.add("top");
+    $("pc"+best.i).querySelector(".leader").textContent="Strongest on paper";
+  }
+}
+
+function finish(){
+  drawing=false;
+  setActive(-1);
+  ball.className="ball idle";
+  ball.querySelector('.flag').textContent="🏆";
+  teamName.textContent="Draw complete";
+  teamRank.innerHTML="&nbsp;";
+  stageLabel.innerHTML="Every team dealt — save &amp; share below";
+  skipBtn.style.display="none";
+  againBtn.style.display="inline-block";
+  computeVerdicts();
+
+  const code = encodeResult();
+  $("save").classList.add("show");
+  $("saveNote").innerHTML =
+    `Send the <b>Copy share link</b> URL to the group — they'll see these exact picks, no PIN needed.<br>` +
+    `To make them the permanent default on your repo, paste this code into <b>LOCKED_RESULT</b> at the top of the file:` +
+    `<br><code>${code}</code>`;
+  $("copyBtn").onclick = ()=>{ copyText(shareLink(code)); toast("Share link copied — send it to the group"); };
+  $("dlBtn").onclick    = ()=> downloadLocked(code);
+}
+
+/* ---- encode / decode picks (one digit per team = player index) ---- */
+function encodeResult(){
+  const arr = new Array(TEAMS.length).fill(0);
+  squads.forEach((p,pi)=>p.teams.forEach(t=>arr[t.idx]=pi));
+  return arr.join('');
+}
+function decodeResult(code){
+  if(typeof code!=='string') return null;
+  code=code.trim();
+  if(code.length!==TEAMS.length) return null;
+  const arr=[];
+  for(const ch of code){
+    const v=parseInt(ch,10);
+    if(isNaN(v)||v<0||v>=PLAYERS.length) return null;
+    arr.push(v);
+  }
+  return arr;
+}
+function shareLink(code){ return location.href.split('#')[0] + '#r=' + code; }
+
+function copyText(txt){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).catch(()=>fallbackCopy(txt));
+  } else fallbackCopy(txt);
+}
+function fallbackCopy(txt){
+  const ta=document.createElement('textarea');
+  ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select();
+  try{document.execCommand('copy');}catch(e){}
+  ta.remove();
+}
+function toast(msg){
+  const t=$("toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("show"),2400);
+}
+
+/* build a copy of this page with the picks baked in, for committing to the repo */
+async function downloadLocked(code){
+  try{
+    const res = await fetch(location.href.split('#')[0], {cache:'no-store'});
+    let html = await res.text();
+    const re = /const LOCKED_RESULT\s*=\s*"[^"]*";/;
+    if(!re.test(html)) throw new Error("anchor missing");
+    html = html.replace(re, `const LOCKED_RESULT = "${code}";`);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+    a.download='index.html'; a.click();
+    URL.revokeObjectURL(a.href);
+    toast("Downloaded index.html — commit it to your repo");
+  }catch(e){
+    copyText(code);
+    toast("Couldn't build the file — code copied instead");
+  }
+}
+
+/* ---- read-only view mode (what the group sees) ---- */
+function renderView(arr){
+  buildBoard();
+  TEAMS.forEach((t,i)=>{ const pi=arr[i]; placeTeam(pi, t, squads[pi].teams.length); });
+  computeVerdicts();
+  $("lock").classList.add("hidden");
+  ball.className="ball idle";
+  ball.querySelector('.flag').textContent="🏆";
+  teamName.textContent="Official picks";
+  teamRank.innerHTML="&nbsp;";
+  stageLabel.innerHTML="World Cup 2026 sweepstake — locked in";
+  goBtn.style.display="none"; skipBtn.style.display="none"; againBtn.style.display="none";
+  $("save").classList.remove("show");
+  $("viewBadge").classList.add("show");
+  $("adminLink").classList.add("show");
+}
+
+/* ---- lock gate ---- */
+function showLock(){
+  $("lock").classList.remove("hidden");
+  goBtn.style.display="inline-block";
+  setTimeout(()=>$("pinInput").focus(),60);
+}
+function tryUnlock(){
+  if($("pinInput").value.trim()===ADMIN_PIN){
+    $("lock").classList.add("hidden");
+    $("pinMsg").innerHTML="&nbsp;";
+    toast("Unlocked — run the draw");
+  }else{
+    const l=$("lock"); l.classList.add("shake");
+    $("pinMsg").textContent="Wrong PIN — try again";
+    $("pinInput").value="";
+    setTimeout(()=>l.classList.remove("shake"),420);
+  }
+}
+function resetToDraw(){
+  if(location.hash) history.replaceState(null,"",location.pathname);
+  buildBoard();
+  ball.querySelector('.flag').textContent="⚽"; ball.className="ball idle";
+  teamName.innerHTML="&nbsp;"; teamRank.innerHTML="&nbsp;";
+  stageLabel.textContent="Tap the button to begin the draw";
+  $("viewBadge").classList.remove("show");
+  $("adminLink").classList.remove("show");
+  $("save").classList.remove("show");
+  againBtn.style.display="none";
+  showLock();
+}
+
+/* ---- events ---- */
+goBtn.addEventListener("click", ()=>{ if(!drawing) runDraw(); });
+skipBtn.addEventListener("click", ()=>{ skipped=true; });
+againBtn.addEventListener("click", ()=>{
+  buildBoard();
+  ball.querySelector('.flag').textContent="⚽";
+  ball.className="ball idle";
+  teamName.innerHTML="&nbsp;"; teamRank.innerHTML="&nbsp;";
+  stageLabel.textContent="Tap the button to begin the draw";
+  $("save").classList.remove("show");
+  againBtn.style.display="none";
+  goBtn.style.display="inline-block";
+});
+
+$("unlockBtn").addEventListener("click", tryUnlock);
+$("pinInput").addEventListener("keydown", e=>{ if(e.key==="Enter") tryUnlock(); });
+$("adminLink").addEventListener("click", resetToDraw);
+
+/* ---- init: show saved picks (view mode) or the admin lock ---- */
+(function init(){
+  let code = null;
+  const m = location.hash.match(/r=([0-9]+)/);
+  if(m) code = m[1];
+  else if(LOCKED_RESULT) code = LOCKED_RESULT;
+  const arr = decodeResult(code);
+  if(arr) renderView(arr);
+  else showLock();
+})();
+</script>
+</body>
+</html>
