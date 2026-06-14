@@ -42,6 +42,7 @@ Object.entries(ALIAS).forEach(([k,v]) => NAME2OURS[norm(k)] = v);
 const findTeam = n => NAME2OURS[norm(n)] || null;
 
 const ROUND_BASE = { R32:1, R16:2, QF:3, SF:4, F:5 };
+const ROUND_LABEL = { R32:"Round of 32", R16:"Round of 16", QF:"Quarter-final", SF:"Semi-final", F:"Final" };
 function koRound(d){
   const t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
   const md = (m,day) => Date.UTC(2026, m-1, day);
@@ -62,12 +63,19 @@ async function run(){
   const scores = new Array(MATCHES.length).fill("");
   const stages = new Array(TEAM_ORDER.length).fill(0);
   const koMap  = {};
+  let   nextUp = null;
   const bump = (name,val) => { const i=TIDX[name]; if(i!==undefined && val>stages[i]) stages[i]=val; };
+  const spotWhere = (a,b,d) => {
+    if(PAIR2K[a+"|"+b]!==undefined) return "Grp " + MATCHES[PAIR2K[a+"|"+b]].g;
+    const r = d ? koRound(d) : null;
+    return r ? ROUND_LABEL[r] : "World Cup";
+  };
 
   const start = new Date(Date.UTC(2026,5,11));
   const today = new Date();
+  const end   = new Date(today.getTime() + 6*864e5);
   const dates = [];
-  for (let d=new Date(start); d<=today; d.setUTCDate(d.getUTCDate()+1))
+  for (let d=new Date(start); d<=end; d.setUTCDate(d.getUTCDate()+1))
     dates.push(`${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,"0")}${String(d.getUTCDate()).padStart(2,"0")}`);
 
   for (const dt of dates){
@@ -78,7 +86,8 @@ async function run(){
       for (const ev of (j.events||[])){
         const comp = ev.competitions && ev.competitions[0]; if(!comp) continue;
         const cs = comp.competitors; if(!cs || cs.length!==2) continue;
-        const completed = ev.status && ev.status.type && ev.status.type.completed;
+        const stype = ev.status && ev.status.type ? ev.status.type : {};
+        const completed = stype.completed;
         const n0 = findTeam(cs[0].team && (cs[0].team.displayName||cs[0].team.name));
         const n1 = findTeam(cs[1].team && (cs[1].team.displayName||cs[1].team.name));
         if(!n0 || !n1) continue;
@@ -87,6 +96,10 @@ async function run(){
         const s0 = parseInt(cs[0].score,10), s1 = parseInt(cs[1].score,10);
         const winnerName = (!isNaN(s0)&&!isNaN(s1)) ? (s0>s1?n0 : s1>s0?n1 : null)
                                                     : (cs[0].winner?n0 : cs[1].winner?n1 : null);
+
+        if(stype.state==="pre" && evDate && evDate.getTime()>=Date.now()){
+          if(!nextUp || evDate < nextUp._d) nextUp = { a:n0, b:n1, date:ev.date, where:spotWhere(n0,n1,evDate), _d:evDate };
+        }
 
         if (k !== undefined){          // group match
           if(!completed) continue;
@@ -104,10 +117,12 @@ async function run(){
     }catch(e){ /* skip a bad day */ }
   }
 
-  const out = { group: gres.join(""), scores, stages: stages.join(""), ko: Object.values(koMap), updated: new Date().toISOString() };
+  const next = nextUp ? { a:nextUp.a, b:nextUp.b, date:nextUp.date, where:nextUp.where } : null;
+  const out = { group: gres.join(""), scores, stages: stages.join(""), ko: Object.values(koMap), next, updated: new Date().toISOString() };
   fs.writeFileSync("results.json", JSON.stringify(out));
   console.log(`Wrote results.json — ${gres.filter(x=>x).length}/${MATCHES.length} group games, `
-    + `${Object.keys(koMap).length} knockout games, ${stages.filter(x=>x).length} teams with a stage.`);
+    + `${Object.keys(koMap).length} knockout games, ${stages.filter(x=>x).length} teams with a stage`
+    + (next ? `, next: ${next.a} v ${next.b}` : "") + ".");
 }
 
 run();
