@@ -285,6 +285,17 @@
 
   .auto-bar{display:flex;align-items:center;gap:10px;justify-content:center;max-width:520px;margin:0 auto 12px;
     font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);flex-wrap:wrap}
+
+  .champ-banner{max-width:520px;margin:0 auto 16px;text-align:center;padding:18px 16px;border-radius:16px;
+    border:1px solid var(--gold);background:linear-gradient(180deg,rgba(243,197,68,.18),rgba(6,16,11,.4));
+    box-shadow:0 18px 50px -24px rgba(243,197,68,.6)}
+  .champ-banner .cb-trophy{font-size:40px;line-height:1}
+  .champ-banner .cb-main{font-family:'Anton',sans-serif;text-transform:uppercase;font-size:clamp(22px,6vw,30px);
+    letter-spacing:.02em;margin-top:6px;
+    background:linear-gradient(180deg,#fff,var(--gold-soft) 60%,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .champ-banner .cb-sub{font-family:'Space Mono',monospace;font-size:11px;color:var(--gold-soft);margin-top:6px;letter-spacing:.04em}
+  .wbadge{font-family:'Space Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+    color:#1a1205;background:var(--gold);padding:2px 7px;border-radius:999px;margin-left:6px}
   .auto-dot{width:9px;height:9px;border-radius:50%;background:#6a7a70;flex:0 0 auto}
   .auto-dot.on{background:var(--grass);animation:pulse 2s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(39,192,106,.5)}70%{box-shadow:0 0 0 7px rgba(39,192,106,0)}100%{box-shadow:0 0 0 0 rgba(39,192,106,0)}}
@@ -663,23 +674,39 @@ function buildLeaderboard(){
   const box=$("leaderboard");
   if(!currentAssign){ box.innerHTML=''; return; }
   const sc=computeScores();
-  const order=PLAYERS.map((p,i)=>i).sort((a,b)=> sc[b].total-sc[a].total || sc[b].wins-sc[a].wins || PLAYERS[a].name.localeCompare(PLAYERS[b].name));
+  let order=PLAYERS.map((p,i)=>i).sort((a,b)=> sc[b].total-sc[a].total || sc[b].wins-sc[a].wins || PLAYERS[a].name.localeCompare(PLAYERS[b].name));
+
+  // winner takes all: whoever owns the World Cup champions wins outright
+  let champOwner=-1, champTeam=null;
+  for(let i=0;i<TEAMS.length;i++){ if(stages[i]===6){ champOwner=currentAssign[i]; champTeam=TEAMS[i]; break; } }
+  if(champOwner>=0) order=[champOwner, ...order.filter(i=>i!==champOwner)];
+
+  let html='';
+  if(champOwner>=0){
+    html+=`<div class="champ-banner"><div class="cb-trophy">🏆</div>`+
+      `<div class="cb-main"><b>${PLAYERS[champOwner].name}</b> wins the sweepstake</div>`+
+      `<div class="cb-sub">${champTeam.f} ${champTeam.n} are World Cup champions — winner takes all</div></div>`;
+  }
 
   const stamp = lastUpdated ? lastUpdated.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
   const statusTxt = !autoOn ? 'Auto-update paused' : (autoErr ? 'Live scores: '+autoErr : 'Live · updated '+stamp);
-  let html=`<div class="auto-bar"><span class="auto-dot ${autoOn&&!autoErr?'on':''}"></span><span class="auto-txt">${statusTxt}</span>`+
+  html+=`<div class="auto-bar"><span class="auto-dot ${autoOn&&!autoErr?'on':''}"></span><span class="auto-txt">${statusTxt}</span>`+
     `<button class="btn-ghost mini" id="lbAuto">${autoOn?'Pause':'Resume'}</button>`+
     `<button class="btn-ghost mini" id="lbRefresh">Refresh</button></div>`;
 
   html+=`<div class="lb"><div class="lb-row lb-head"><span>#</span><span>Player</span><span>Grp</span><span>KO</span><span>Pts</span></div>`;
   order.forEach((pi,rank)=>{
     const r=sc[pi];
-    html+=`<div class="lb-row ${rank===0&&r.total>0?'lead':''}"><span class="lb-rank">${rank+1}</span>`+
-      `<span class="lb-name">${ocDot(pi)}${PLAYERS[pi].name}</span>`+
+    const isChamp = pi===champOwner;
+    const lead = isChamp || (champOwner<0 && rank===0 && r.total>0);
+    html+=`<div class="lb-row ${lead?'lead':''}"><span class="lb-rank">${isChamp?'🏆':rank+1}</span>`+
+      `<span class="lb-name">${ocDot(pi)}${PLAYERS[pi].name}${isChamp?' <span class="wbadge">Winner</span>':''}</span>`+
       `<span>${r.group}</span><span>${r.ko}</span><span class="lb-total">${r.total}</span></div>`;
   });
   html+=`</div>`;
-  html+=`<div class="fixnote">Group: win 3 · draw 1. Knockout bonus (furthest stage): R32 4 · R16 9 · QF 16 · SF 26 · Runner-up 40 · Winner 60.</div>`;
+  html+= champOwner>=0
+    ? `<div class="fixnote">Winner takes all — the player who owns the champions takes the pot. Points below are the final form table.</div>`
+    : `<div class="fixnote"><b>Winner takes all:</b> whoever owns the World Cup winners takes the pot. Until the final, this is the live race — group: win 3 · draw 1; deep runs add bonus (R32 4 · R16 9 · QF 16 · SF 26 · Runner-up 40 · Winner 60).</div>`;
   box.innerHTML=html;
 }
 
