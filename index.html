@@ -296,6 +296,22 @@
   .champ-banner .cb-sub{font-family:'Space Mono',monospace;font-size:11px;color:var(--gold-soft);margin-top:6px;letter-spacing:.04em}
   .wbadge{font-family:'Space Mono',monospace;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
     color:#1a1205;background:var(--gold);padding:2px 7px;border-radius:999px;margin-left:6px}
+
+  /* live / next-up spotlight */
+  .spot{max-width:520px;margin:0 auto 14px;border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+    background:linear-gradient(180deg,rgba(13,36,24,.55),rgba(6,16,11,.5))}
+  .spot.live{border-color:rgba(255,93,115,.5)}
+  .spot-h{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted);display:flex;align-items:center;gap:7px;margin-bottom:9px}
+  .spot.live .spot-h{color:#ff5d73}
+  .spot-dot{width:8px;height:8px;border-radius:50%;background:#ff5d73;box-shadow:0 0 0 0 rgba(255,93,115,.6);animation:lpulse 1.4s infinite}
+  @keyframes lpulse{0%{box-shadow:0 0 0 0 rgba(255,93,115,.6)}70%{box-shadow:0 0 0 7px rgba(255,93,115,0)}100%{box-shadow:0 0 0 0 rgba(255,93,115,0)}}
+  .spot-row{display:flex;align-items:center;gap:8px;font-size:14px;padding:4px 0}
+  .spot-side{flex:1;display:flex;align-items:center;gap:6px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .spot-side.spot-b{justify-content:flex-end;text-align:right}
+  .spot-sc{font-family:'Anton',sans-serif;font-size:18px;color:var(--gold);flex:0 0 auto;letter-spacing:.02em}
+  .spot-vs{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);flex:0 0 auto}
+  .spot-meta{flex-basis:100%;font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);text-align:center;margin-top:4px}
   .auto-dot{width:9px;height:9px;border-radius:50%;background:#6a7a70;flex:0 0 auto}
   .auto-dot.on{background:var(--grass);animation:pulse 2s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(39,192,106,.5)}70%{box-shadow:0 0 0 7px rgba(39,192,106,0)}100%{box-shadow:0 0 0 0 rgba(39,192,106,0)}}
@@ -414,6 +430,7 @@ let gscores= new Array(MATCHES.length).fill(null);// {a,b} goals oriented to mat
 let stages = new Array(TEAMS.length).fill(0);    // 0 group … 6 winner
 let koMap  = {};                                  // knockout encounters: key -> {a,b,round,sa,sb,done}
 let unlocked = false;
+let liveMatches=[], nextMatch=null;               // spotlight: in-progress games / next kickoff
 const ROUND_LABEL={R32:'Round of 32',R16:'Round of 16',QF:'Quarter-final',SF:'Semi-final',F:'Final'};
 const ROUND_ORD ={R32:4,R16:5,QF:6,SF:7,F:8};
 
@@ -686,6 +703,14 @@ function buildLeaderboard(){
     html+=`<div class="champ-banner"><div class="cb-trophy">🏆</div>`+
       `<div class="cb-main"><b>${PLAYERS[champOwner].name}</b> wins the sweepstake</div>`+
       `<div class="cb-sub">${champTeam.f} ${champTeam.n} are World Cup champions — winner takes all</div></div>`;
+  } else if(liveMatches.length){
+    html+=`<div class="spot live"><div class="spot-h"><span class="spot-dot"></span>Live now</div>`+
+      liveMatches.slice(0,4).map(m=>`<div class="spot-row"><span class="spot-side">${ocDot(ownerOf(m.a))}${tname(m.a)}</span><span class="spot-sc">${m.sa}–${m.sb}</span><span class="spot-side spot-b">${tname(m.b)}${ocDot(ownerOf(m.b))}</span><span class="spot-meta">${m.detail} · ${m.where}</span></div>`).join('')+
+      `</div>`;
+  } else if(nextMatch){
+    const m=nextMatch;
+    html+=`<div class="spot"><div class="spot-h">⏭ Next up</div>`+
+      `<div class="spot-row"><span class="spot-side">${ocDot(ownerOf(m.a))}${tname(m.a)}</span><span class="spot-vs">v</span><span class="spot-side spot-b">${tname(m.b)}${ocDot(ownerOf(m.b))}</span><span class="spot-meta">${m.where} · ${formatKickoff(m.date)}</span></div></div>`;
   }
 
   const stamp = lastUpdated ? lastUpdated.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—';
@@ -787,6 +812,10 @@ async function fetchResultsJson(){
           sa:(o.sa===undefined?null:o.sa), sb:(o.sb===undefined?null:o.sb), done:!!o.done};
       }});
     }
+    if(j.next && j.next.a && j.next.b && j.next.date){
+      const d=new Date(j.next.date);
+      if(!isNaN(d)) nextMatch={a:j.next.a,b:j.next.b,date:d,where:j.next.where||spotWhere(j.next.a,j.next.b,d)};
+    }
     if(j.updated) lastUpdated=new Date(j.updated);
     return true;
   }catch(e){}
@@ -808,17 +837,64 @@ function koRound(d){
 }
 function bumpStage(name,val){ const i=IDX[name]; if(i!==undefined && val>stages[i]) stages[i]=val; }
 
+function fmtDate(d){ return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`; }
+function formatKickoff(date){
+  const now=new Date();
+  const t=date.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  if(date.toDateString()===now.toDateString()) return `Today ${t}`;
+  const tm=new Date(now.getTime()+864e5);
+  if(date.toDateString()===tm.toDateString()) return `Tomorrow ${t}`;
+  return `${date.toLocaleDateString([], {weekday:'short', day:'numeric', month:'short'})} · ${t}`;
+}
+function spotWhere(n0,n1,date){
+  const k=PAIR2K[n0+'|'+n1];
+  if(k!==undefined) return `Grp ${MATCHES[k].g}`;
+  const r=date?koRound(date):null;
+  return r?ROUND_LABEL[r]:'World Cup';
+}
+// pull "live now" + "next up" from a set of scoreboard responses
+function applySpotlight(jsons){
+  const live=[]; let best=null; const now=new Date();
+  jsons.forEach(j=>{ if(!j) return; (j.events||[]).forEach(ev=>{
+    try{
+      const comp=ev.competitions&&ev.competitions[0]; if(!comp) return;
+      const cs=comp.competitors; if(!cs||cs.length!==2) return;
+      const n0=findTeam(cs[0].team&&(cs[0].team.displayName||cs[0].team.name||cs[0].team.shortDisplayName));
+      const n1=findTeam(cs[1].team&&(cs[1].team.displayName||cs[1].team.name||cs[1].team.shortDisplayName));
+      if(!n0||!n1) return;
+      const st=(ev.status&&ev.status.type)||{}, date=ev.date?new Date(ev.date):null;
+      const where=spotWhere(n0,n1,date);
+      if(st.state==='in'){
+        const sa=parseInt(cs[0].score,10), sb=parseInt(cs[1].score,10);
+        live.push({a:n0,b:n1,sa:isNaN(sa)?0:sa,sb:isNaN(sb)?0:sb,detail:st.shortDetail||st.detail||'Live',where});
+      } else if(st.state==='pre' && date && date>=now){
+        if(!best || date<best.date) best={a:n0,b:n1,date,where};
+      }
+    }catch(e){}
+  });});
+  liveMatches=live; nextMatch=best;
+}
+// light ESPN call (today + next few days) just for the spotlight — used when results come from results.json
+async function fetchSpotlight(){
+  const today=new Date();
+  const from=new Date(today.getTime()-1*864e5), to=new Date(today.getTime()+6*864e5);
+  const dates=[]; for(let d=new Date(from); d<=to; d.setDate(d.getDate()+1)) dates.push(fmtDate(d));
+  const base=`https://site.api.espn.com/apis/site/v2/sports/soccer/${ESPN_LEAGUE}/scoreboard?dates=`;
+  const jsons=await Promise.all(dates.map(dt=>fetch(base+dt).then(r=>r.ok?r.json():null).catch(()=>null)));
+  applySpotlight(jsons);
+}
+
 // 2) otherwise call ESPN's public World Cup scoreboard directly from the browser
 async function fetchLiveESPN(full){
   const start=new Date(2026,5,11), today=new Date();
+  const end=new Date(today.getTime()+6*864e5);
   let from = full ? new Date(start) : new Date(today.getTime()-2*864e5);
   if(from<start) from=new Date(start);
   const dates=[];
-  for(let d=new Date(from); d<=today; d.setDate(d.getDate()+1)){
-    dates.push(`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`);
-  }
+  for(let d=new Date(from); d<=end; d.setDate(d.getDate()+1)) dates.push(fmtDate(d));
   const base=`https://site.api.espn.com/apis/site/v2/sports/soccer/${ESPN_LEAGUE}/scoreboard?dates=`;
   const jsons=await Promise.all(dates.map(dt=>fetch(base+dt).then(r=>r.ok?r.json():null).catch(()=>null)));
+  applySpotlight(jsons);
   let any=false, gotAnyResponse=false;
   jsons.forEach(j=>{
     if(!j) return; gotAnyResponse=true;
@@ -866,7 +942,8 @@ async function autoUpdate(full){
   if(!currentAssign || !autoOn) return;
   try{
     let ok = await fetchResultsJson();
-    if(!ok) ok = await fetchLiveESPN(full);
+    if(ok){ try{ await fetchSpotlight(); }catch(e){} }   // file has results; get live/next from ESPN
+    else  { ok = await fetchLiveESPN(full); }            // ESPN drives both
     lastUpdated = lastUpdated || new Date();
     if(ok) lastUpdated = new Date();
     autoErr = null;
